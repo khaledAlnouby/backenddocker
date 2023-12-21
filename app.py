@@ -1,5 +1,6 @@
 import logging
-import os  from flask import Flask, request, jsonify
+import os 
+from flask import Flask, request, jsonify
 from flask_pymongo import PyMongo
 from werkzeug.security import generate_password_hash
 from flask_bcrypt import Bcrypt
