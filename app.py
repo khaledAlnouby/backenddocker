@@ -220,8 +220,8 @@ def index():
     return "Hello, World!"
 
 if __name__ == '__main__':
-    host = '0.0.0.0'
-    port = 5000
+    port = os.environ.get('FLASK_PORT') or 8080
+    port = int(port)
     logging.basicConfig(level=logging.INFO)
-    logging.info(f"Running Flask app at http://{host}:{port}")
-    app.run(debug=False, host=host, port=port)
+    # logging.info(f"Running Flask app at http://{ }:{port}")
+    app.run(port=port, host='0.0.0.0')
