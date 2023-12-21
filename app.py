@@ -32,7 +32,7 @@ def signup():
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.get_json()
-    if 'email' not in data:
+    if data is not None and 'email' not in data:
         return jsonify({"msg": "Email not provided"}), 400
 
     user = users_collection.find_one({'email': data['email']})
