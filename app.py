@@ -5,6 +5,7 @@ from flask_pymongo import PyMongo
 from werkzeug.security import generate_password_hash
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS  
+app = Flask(__name__)
 CORS(app) 
 CORS(app, resources={r"/api/*": {"origins": "http://frontend:3000"}})
 app.config['MONGO_URI'] = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/clinic_reservation.users')
@@ -15,7 +16,6 @@ bcrypt = Bcrypt(app)
 users_collection = mongo.db.users
 appointment_collection = mongo.db.appointment
 
-app = Flask(__name__)
 
 # MongoDB configuration
 mongo_uri = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/clinic_reservation.users')
