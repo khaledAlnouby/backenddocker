@@ -9,7 +9,7 @@ CORS(app)
 CORS(app, resources={r"/api/*": {"origins": "http://frontend:3000"}})
 
 # MongoDB configuration
-app.config['MONGO_URI'] = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/clinic_reservation.users')
+app.config['MONGO_URI'] = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/clinic_reservation')
 mongo = PyMongo(app)
 bcrypt = Bcrypt(app)
 
@@ -27,7 +27,7 @@ def signup():
 
     # Check if the email already exists
     existing_user = users_collection.find_one({'email': data['email']})
-    if existing_user:
+    if existing_user is not None:
         return jsonify({"msg": "User with this email already exists"}), 400
     
     new_user = {
