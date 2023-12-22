@@ -129,8 +129,93 @@ def patient_appointment():
             return jsonify({"msg": "Slot booked successfully"}), 200
         else:
             return jsonify({"msg": "Slot not available or booking failed"}), 400
-        
-        
+
+@app.route('/api/cancel_appointment', methods=['PUT'])
+def cancel_appointment():
+    data = request.get_json()
+    patient_email = data.get('patient_email')
+    doctor_email = data.get('doctor_email')
+    slot = {
+        'day': data.get('day'),
+        'start_time': data.get('start_time'),
+        'end_time': data.get('end_time')
+    }
+
+    # Update the doctor's schedule to mark the slot as available
+    result = users_collection.update_one(
+        {'email': doctor_email, 'userType': 'doctor', 'schedule': {'$elemMatch': slot}},
+        {'$set': {'schedule.$.booked': False}}
+    )
+
+    if result.modified_count > 0:
+        # If the slot is canceled successfully, remove the appointment from both collections
+        users_collection.update_one(
+    {'email': patient_email, 'userType': 'patient'},
+    {'$pull': {'appointments': {'doctor_email': doctor_email, 'day': slot['day'],
+     'start_time': slot['start_time'], 'end_time': slot['end_time']}}}
+    )
+
+        # Remove the appointment from the appointment collection
+        appointment_collection.delete_one({
+            'patient_email': patient_email,
+            'doctor_email': doctor_email,
+            'day': slot['day'],
+            'start_time': slot['start_time'],
+            'end_time': slot['end_time']
+        })
+
+        return jsonify({"msg": "Appointment canceled successfully"}), 200
+    else:
+        return jsonify({"msg": "Failed to cancel appointment. Appointment not found or invalid data"}), 400
+
+
+
+@app.route('/api/view_patient_appointments/<string:email>', methods=['GET'])
+def view_patient_appointments(email):
+    patient = users_collection.find_one({'email': email, 'userType': 'patient'})
+
+    if not patient:
+        return jsonify({"msg": "Patient not found"}), 404
+
+    # find all appointment of the specific patient
+    appointments_cursor = appointment_collection.find({'patient_email': email})
+
+    appointments = []
+    for appointment in appointments_cursor:
+        appointment['_id'] = str(appointment.get('_id'))
+        appointments.append(appointment)
+
+    return jsonify({"appointments": appointments}), 200
+
+@app.route('/api/view_doctor_slots/<string:email>', methods=['GET'])
+def view_doctor_slots(email):
+    doctor = users_collection.find_one({'email': email, 'userType': 'doctor'})
+
+    if not doctor:
+        return jsonify({"msg": "Doctor not found"}), 404
+
+    doctor_slots = doctor.get('schedule', [])
+
+    
+
+    return jsonify({"doctor_slots": doctor_slots}), 200
+
+@app.route('/api/view_doctors', methods=['GET'])
+def view_doctors():
+    doctors = users_collection.find({'userType': 'doctor'}, {'email': 1})
+
+    doctor_list = [doctor['email'] for doctor in doctors]
+
+    return jsonify({"doctors": doctor_list}), 200
+
+@app.route('/api/get_all_patient_emails', methods=['GET'])
+def get_all_patient_emails():
+    patients = mongo.db.users.find({'userType': 'patient'}, {'email': 1})
+
+    patient_emails = [patient['email'] for patient in patients]
+
+    return jsonify({"patientEmails": patient_emails}), 200   
+
 if __name__ == '__main__':
     port = os.environ.get('FLASK_PORT') or 8080
     port = int(port)
