@@ -53,6 +53,84 @@ def login():
     else:
         return jsonify({"msg": "Invalid email or password"}), 401
 
+@app.route('/api/set_schedule/<string:email>', methods=['POST'])
+def set_schedule(email):
+    data = request.get_json()
+
+    doctor = users_collection.find_one({'email': email, 'userType': 'doctor'})
+
+    if doctor:
+        # the 'schedule' field is a list in the doctor's document
+        if 'schedule' not in doctor:
+            doctor['schedule'] = []
+
+        new_slot = {
+            'day': data.get('day'),
+            'start_time': data.get('start_time'),
+            'end_time': data.get('end_time')
+        }
+
+        doctor['schedule'].append(new_slot)
+
+        users_collection.update_one({'email': email, 'userType': 'doctor'}, {'$set': doctor})
+
+        return jsonify({"msg": "Schedule updated successfully"}), 200
+    else:
+        return jsonify({"msg": "User not found or not a doctor"}), 404
+@app.route('/api/patient_appointment', methods=['GET', 'POST'])
+def patient_appointment():
+    # get all the doctors ro the list of doctors
+    if request.method == 'GET':
+        doctors = users_collection.find({'userType': 'doctor'}, {'email': 1})
+        doctor_list = [doctor['email'] for doctor in doctors]
+        return jsonify({"doctors": doctor_list}), 200
+
+    elif request.method == 'POST':
+        data = request.get_json()
+        print(data)
+        patient_email = data.get('patient_email')
+        doctor_email = data.get('doctor_email')
+        slot = {
+            'day': data.get('day'),
+            'start_time': data.get('start_time'),
+            'end_time': data.get('end_time')
+        }
+
+        # Update the doctor's schedule to mark the slot booked
+        result = users_collection.update_one(
+            {'email': doctor_email, 'userType': 'doctor', 'schedule': {'$elemMatch': slot}},
+            {'$set': {'schedule.$.booked': True}}
+        )
+
+        if result.modified_count > 0:
+            # If the slot is booked successfully, save the appointment in the patient's document
+            appointment_data = {
+                'doctor_email': doctor_email,
+                'day': slot['day'],
+                'start_time': slot['start_time'],
+                'end_time': slot['end_time']
+            }
+
+            appointmentCollectionData ={
+                'patient_email': patient_email,
+                'doctor_email': doctor_email,
+                'day': slot['day'],
+                'start_time': slot['start_time'],
+                'end_time': slot['end_time'] 
+            }
+
+            appointment_collection.insert_one(appointmentCollectionData)
+
+            # Update the patient's document to include the appointment
+            users_collection.update_one(
+                {'email': patient_email, 'userType': 'patient'},
+                {'$push': {'appointments': appointment_data}}
+            )
+            return jsonify({"msg": "Slot booked successfully"}), 200
+        else:
+            return jsonify({"msg": "Slot not available or booking failed"}), 400
+        
+        
 if __name__ == '__main__':
     port = os.environ.get('FLASK_PORT') or 8080
     port = int(port)
